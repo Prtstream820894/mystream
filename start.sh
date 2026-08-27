@@ -29,38 +29,11 @@ with socketserver.TCPServer(("0.0.0.0", PORT), HLSHTTPRequestHandler) as httpd:
     httpd.serve_forever()
 ' &
 
+# Tera GitHub Codespaces ka direct HLS stream link
+STREAM_URL="https://legendary-orbit-r44wx4gj9xq6fwxqx-8080.app.github.dev/master.m3u8"
+
 while true; do
-    STREAM_URL=$(python3 -c "
-import urllib.request
-try:
-    req_obj = urllib.request.Request(
-        'https://tight-firefly-ecdd.poonamchouhan076.workers.dev/', 
-        headers={'User-Agent': 'Mozilla/5.0'}
-    )
-    req = urllib.request.urlopen(req_obj)
-    lines = req.read().decode('utf-8').splitlines()
-    for i in range(len(lines)):
-        if 'sony max' in lines[i].lower():
-            for j in range(i+1, min(i+10, len(lines))):
-                if lines[j].strip().startswith('http'):
-                    print(lines[j].strip())
-                    exit()
-    for line in lines:
-        if line.strip().startswith('http'):
-            print(line.strip())
-            break
-except Exception:
-    pass
-")
-
-    if [ -z "$STREAM_URL" ]; then
-        sleep 5
-        continue
-    fi
-
     ffmpeg -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 \
-    -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-    -headers "Referer: https://www.sonyliv.com/" \
     -i "$STREAM_URL" \
     -filter_complex '[0:v]drawtext=text="PRT":fontcolor=red:fontsize=32:x=20:y=20,drawtext=text="STREAM":fontcolor=yellow:fontsize=32:x=100:y=20,split=2[v1][v2];[v1]scale=854:480[v1out];[v2]scale=1280:720[v2out]' \
     -map '[v1out]' -c:v:0 libx264 -preset ultrafast -b:v:0 400k -maxrate 400k -bufsize 800k -g 100 \
