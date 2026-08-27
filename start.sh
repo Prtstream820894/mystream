@@ -70,7 +70,7 @@ except Exception:
     -hls_list_size 10 \
     -hls_flags delete_segments+append_list+independent_segments \
     -var_stream_map 'v:0,a:0 v:1,a:1' \
-    -master_pl_name master.m3u8 \
+    -master_pl_name stream/master.m3u8 \
     -hls_segment_filename 'stream/v%v/seg_%03d.ts' \
     stream/v%v/index.m3u8
 
