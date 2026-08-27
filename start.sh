@@ -59,6 +59,8 @@ except Exception:
     fi
 
     ffmpeg -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 \
+    -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+    -headers "Referer: https://www.sonyliv.com/$'\r\n'Origin: https://www.sonyliv.com$'\r\n'" \
     -i "$STREAM_URL" \
     -filter_complex '[0:v]drawtext=text="PRT":fontcolor=red:fontsize=32:x=20:y=20,drawtext=text="STREAM":fontcolor=yellow:fontsize=32:x=100:y=20,split=2[v1][v2];[v1]scale=854:480[v1out];[v2]scale=1280:720[v2out]' \
     -map '[v1out]' -c:v:0 libx264 -preset ultrafast -b:v:0 400k -maxrate 400k -bufsize 800k -g 100 \
