@@ -29,11 +29,64 @@ with socketserver.TCPServer(("0.0.0.0", PORT), HLSHTTPRequestHandler) as httpd:
     httpd.serve_forever()
 ' &
 
-# Tera GitHub Codespaces ka direct HLS stream link
-STREAM_URL="https://legendary-orbit-r44wx4gj9xq6fwxqx-8080.app.github.dev/master.m3u8"
-
 while true; do
+    STREAM_URL=$(python3 -c "
+import urllib.request
+import re
+
+try:
+    player_url = 'https://crichdsee.st/player.php?id=starsp3'
+    req_obj = urllib.request.Request(
+        player_url, 
+        headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://crichdsee.st/'
+        }
+    )
+    html = urllib.request.urlopen(req_obj, timeout=10).read().decode('utf-8')
+    
+    # 1. Direct .m3u8 check
+    m3u8_matches = re.findall(r'https?://[^\s<>\"'']+?\.m3u8[^\s<>\"'']*', html)
+    if m3u8_matches:
+        print(m3u8_matches[0])
+        exit()
+        
+    # 2. Iframe check
+    iframe_matches = re.findall(r'<iframe[^>]+src=[\"'\']([^\"'\']+)[\"'\']', html)
+    for iframe_url in iframe_matches:
+        if not iframe_url.startswith('http'):
+            if iframe_url.startswith('//'):
+                iframe_url = 'https:' + iframe_url
+            else:
+                continue
+                
+        try:
+            iframe_req = urllib.request.Request(
+                iframe_url,
+                headers={'User-Agent': 'Mozilla/5.0', 'Referer': 'https://crichdsee.st/'}
+            )
+            iframe_html = urllib.request.urlopen(iframe_req, timeout=5).read().decode('utf-8')
+            inner_m3u8 = re.findall(r'https?://[^\s<>\"'']+?\.m3u8[^\s<>\"'']*', iframe_html)
+            if inner_m3u8:
+                print(inner_m3u8[0])
+                exit()
+        except:
+            continue
+except Exception as e:
+    pass
+")
+
+    if [ -z "$STREAM_URL" ]; then
+        echo "Link nahi mila, dobara koshish kar rahe hain..."
+        sleep 10
+        continue
+    fi
+
+    echo "==> Mil gaya Link: $STREAM_URL"
+
     ffmpeg -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 \
+    -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+    -headers "Referer: https://crichdsee.st/$'\r\n'Origin: https://crichdsee.st$'\r\n'" \
     -i "$STREAM_URL" \
     -filter_complex '[0:v]drawtext=text="PRT":fontcolor=red:fontsize=32:x=20:y=20,drawtext=text="STREAM":fontcolor=yellow:fontsize=32:x=100:y=20,split=2[v1][v2];[v1]scale=854:480[v1out];[v2]scale=1280:720[v2out]' \
     -map '[v1out]' -c:v:0 libx264 -preset ultrafast -b:v:0 400k -maxrate 400k -bufsize 800k -g 100 \
